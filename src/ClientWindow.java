@@ -2,8 +2,8 @@ import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.security.SecureRandom;
-import java.util.TimerTask;
 import java.util.Timer;
+import java.util.TimerTask;
 import javax.swing.*;
 
 public class ClientWindow implements ActionListener
@@ -25,10 +25,19 @@ public class ClientWindow implements ActionListener
 	Question currentQuestion = qm.getAndRemoveRandomQuestion();
 	String[] optionTexts = { currentQuestion.getOptionA(), currentQuestion.getOptionB(), currentQuestion.getOptionC(), currentQuestion.getOptionD() };
 
+	private TCPClient tcpClient;
+	private String clientId = "123";
+	private int currentQuestionNumber = 1; 
+	private String selectedOption = null; 
+	private int scoreValue = 0;
+	private boolean isAnsweringAllowed = false;
+	
 	// write setters and getters as you need
 	
 	public ClientWindow()
 	{
+		tcpClient = new TCPClient("127.0.0.1", 123);
+
 		JOptionPane.showMessageDialog(window, "This is a trivia game");
 		
 		window = new JFrame("Trivia");
@@ -92,35 +101,61 @@ public class ClientWindow implements ActionListener
 		String input = e.getActionCommand();  
 		switch(input)
 		{
-			case "Option 1":	// Your code here
+			case "Option 1":	selectedOption = currentQuestion.getOptionA();
 								break;
-			case "Option 2":	// Your code here
+			case "Option 2":	selectedOption = currentQuestion.getOptionB();
 								break;
-			case "Option 3":	// Your code here
+			case "Option 3":	selectedOption = currentQuestion.getOptionC();
 								break;
-			case "Option 4":	// Your code here
+			case "Option 4":	selectedOption = currentQuestion.getOptionD();
 								break;
 			case "Poll":		poll.setEnabled(false);
-								submit.setEnabled(true);
-								for(int index=0; index<options.length; index++)
-								{
-									options[index].setEnabled(true);  // enable the radio buttons
+								tcpClient.sendPollMessage("localhost", 1234, clientId, currentQuestionNumber);
+
+								String response = tcpClient.receiveMessageTCP();
+								if ("ack".equals(response)) {
+									isAnsweringAllowed = true;
+									for (int index = 0; index < options.length; index++) {
+										options[index].setEnabled(true);
+									}
+									submit.setEnabled(true);
+								} else if ("negative-ack".equals(response)) {
+									JOptionPane.showMessageDialog(window, "You were late in polling");
 								}
 								break;
 			case "Submit":
 								// Disable submit button after clicking submit
 								submit.setEnabled(false);
 								poll.setEnabled(true);
+
+								// sends the answer
+								if (selectedOption != null) {
+									tcpClient.sendAnswer(clientId, selectedOption);
+								}
+								String serverResponse = tcpClient.receiveMessageTCP();
+                    			if ("correct".equals(serverResponse)) {
+                        			scoreValue += 10;
+                        			JOptionPane.showMessageDialog(window, "Correct! +10 points");
+                    			} else if ("wrong".equals(serverResponse)) {
+                        			scoreValue -= 10;
+                        			JOptionPane.showMessageDialog(window, "Wrong! -10 points");
+                    			}
+                				
 							
 								// Retrieve the next question
 								currentQuestion = qm.getAndRemoveRandomQuestion();
 								if (currentQuestion == null) {
 									// No more questions—end the game or show final score
-									JOptionPane.showMessageDialog(window, "Game Over! Final Score: " + score.getText());
+									JOptionPane.showMessageDialog(window, "Game Over! Final Score: " + scoreValue);
 									// Optionally disable further interaction
 									poll.setEnabled(false);
+									
+
 									break;
 								}
+
+								// increments question number
+								currentQuestionNumber += 1;
 								
 								// Update the question label with the new question
 								question.setText(currentQuestion.getQuestionText());
@@ -132,6 +167,10 @@ public class ClientWindow implements ActionListener
 									options[index].setSelected(false);
 									options[index].setEnabled(false); // keep disabled until poll button is pressed
 								}
+
+								// Resets selected option
+								selectedOption = null;
+								optionGroup.clearSelection();
 								
 								// Reset timer for new question (if needed, cancel and start a new TimerTask)
 								// For example:
@@ -146,6 +185,9 @@ public class ClientWindow implements ActionListener
 		
 	}
 	
+
+	
+
 	// this class is responsible for running the timer on the window
 	public class TimerCode extends TimerTask
 	{
