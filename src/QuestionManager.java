@@ -33,7 +33,6 @@ public class QuestionManager {
         return new Question(parts[1], parts[2], parts[3], parts[4], parts[5], parts[6]);
     }
 
-    // Returns and removes a random question (as a String) from the list
     public String getAndRemoveRandomQuestion() {
         if (questions.isEmpty()) {
             return null;
