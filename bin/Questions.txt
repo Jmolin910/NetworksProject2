@@ -1,20 +1,20 @@
-What is the most commonly used programming language worldwide? | A) Python | B) Java | C) JavaScript | D) C++ | A
-Which sorting algorithm has the worst-case time complexity of O(n^2)? | A) Merge Sort | B) Quick Sort | C) Bubble Sort | D) Heap Sort | C
-What is the term for a bug that is introduced by fixing another bug? | A) Syntax Error | B) Off-by-One Error | C) Regression Bug | D) Segmentation Fault | C
-What does the acronym ‘API’ stand for? | A) Application Programming Interface | B) Applied Programming Input | C) Abstract Program Integration | D) Algorithm Process Interaction | A
-What does the ‘stack overflow’ error refer to? | A) Network Failure | B) Running out of RAM | C) Infinite Loop | D) Exceeding the call stack limit | D
-What is the primary function of Git? | A) Memory Management | B) Source Control | C) Data Analysis | D) Encryption | B
-Which programming language is most popular for web development? | A) C++ | B) Python | C) JavaScript | D) C# | C
-What is the most popular Linux distribution among developers? | A) Arch Linux | B) Ubuntu | C) Fedora | D) CentOS | B
-Which algorithm is famously used by Google for web page ranking? | A) PageRank | B) Dijkstra’s Algorithm | C) A* Search | D) Kruskal’s Algorithm | A
-What data structure operates on a LIFO (Last In, First Out) basis? | A) Array | B) Stack | C) Queue | D) Linked List | B
-Which of the following is NOT a programming paradigm? | A) Object-Oriented | B) Functional | C) Procedural | D) Circular | D
-What tool is commonly used for dependency management in Java projects? | A) Gradle | B) NPM | C) Pip | D) Docker | A
-What is a common cause of segmentation faults in C or C++? | A) Null Pointer Dereference | B) Infinite Loop | C) High Memory Usage | D) Syntax Error | A
-Which famous computer scientist developed the concept of the Turing Machine? | A) Alan Turing | B) John von Neumann | C) Donald Knuth | D) Ada Lovelace | A
-What is the typical file extension for a Java bytecode file? | A) .java | B) .jar | C) .class | D) .py | C
-Which sorting algorithm is generally considered the fastest for large data sets? | A) Bubble Sort | B) Selection Sort | C) Merge Sort | D) Insertion Sort | C
-Which term describes the process of finding and fixing errors in code? | A) Refactoring | B) Compiling | C) Debugging | D) Parsing | C
-What is a common use case for hash tables? | A) Image Processing | B) Sorting | C) Data Storage & Retrieval | D) Compression | C
-Which HTTP status code indicates a successful request? | A) 200 | B) 404 | C) 403 | D) 500 | A
-What does SQL stand for? | A) Sequential Query Language | B) Simple Query Logic | C) Structured Query Language | D) Standard Queue Language | C
+QUESTION|What is the most commonly used programming language worldwide? | A) Python | B) Java | C) JavaScript | D) C++ |A
+QUESTION|Which sorting algorithm has the worst-case time complexity of O(n^2)? | A) Merge Sort | B) Quick Sort | C) Bubble Sort | D) Heap Sort |C
+QUESTION|What is the term for a bug that is introduced by fixing another bug? | A) Syntax Error | B) Off-by-One Error | C) Regression Bug | D) Segmentation Fault |C
+QUESTION|What does the acronym ‘API’ stand for? | A) Application Programming Interface | B) Applied Programming Input | C) Abstract Program Integration | D) Algorithm Process Interaction |A
+QUESTION|What does the ‘stack overflow’ error refer to? | A) Network Failure | B) Running out of RAM | C) Infinite Loop | D) Exceeding the call stack limit |D
+QUESTION|What is the primary function of Git? | A) Memory Management | B) Source Control | C) Data Analysis | D) Encryption |B
+QUESTION|Which programming language is most popular for web development? | A) C++ | B) Python | C) JavaScript | D) C# |C
+QUESTION|What is the most popular Linux distribution among developers? | A) Arch Linux | B) Ubuntu | C) Fedora | D) CentOS |B
+QUESTION|Which algorithm is famously used by Google for web page ranking? | A) PageRank | B) Dijkstra’s Algorithm | C) A* Search | D) Kruskal’s Algorithm |A
+QUESTION|What data structure operates on a LIFO (Last In, First Out) basis? | A) Array | B) Stack | C) Queue | D) Linked List |B
+QUESTION|Which of the following is NOT a programming paradigm? | A) Object-Oriented | B) Functional | C) Procedural | D) Circular |D
+QUESTION|What tool is commonly used for dependency management in Java projects? | A) Gradle | B) NPM | C) Pip | D) Docker |A
+QUESTION|What is a common cause of segmentation faults in C or C++? | A) Null Pointer Dereference | B) Infinite Loop | C) High Memory Usage | D) Syntax Error |A
+QUESTION|Which famous computer scientist developed the concept of the Turing Machine? | A) Alan Turing | B) John von Neumann | C) Donald Knuth | D) Ada Lovelace |A
+QUESTION|What is the typical file extension for a Java bytecode file? | A) .java | B) .jar | C) .class | D) .py |C
+QUESTION|Which sorting algorithm is generally considered the fastest for large data sets? | A) Bubble Sort | B) Selection Sort | C) Merge Sort | D) Insertion Sort |C
+QUESTION|Which term describes the process of finding and fixing errors in code? | A) Refactoring | B) Compiling | C) Debugging | D) Parsing |C
+QUESTION|What is a common use case for hash tables? | A) Image Processing | B) Sorting | C) Data Storage & Retrieval | D) Compression |C
+QUESTION|Which HTTP status code indicates a successful request? | A) 200 | B) 404 | C) 403 | D) 500 |A
+QUESTION|What does SQL stand for? | A) Sequential Query Language | B) Simple Query Logic | C) Structured Query Language | D) Standard Queue Language |C

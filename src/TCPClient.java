@@ -6,31 +6,54 @@ import java.net.Socket;
 
 public class TCPClient {
     private Socket socket;
-    private DataInputStream inStream;
-    private DataOutputStream outStream;
+    private BufferedReader in;
+    private PrintWriter out;
+    private String clientId;
+    private String serverIP;
+    private int serverPort;
 
     public TCPClient(String serverIP, int serverPort) {
+
+        this.serverIP = serverIP;
+        this.serverPort = serverPort;
         try {
             socket = new Socket(serverIP, serverPort);
-            inStream = new DataInputStream(socket.getInputStream());
-            outStream = new DataOutputStream(socket.getOutputStream());
-            System.out.println("Connected to the server");
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new PrintWriter(socket.getOutputStream(), true);
+            System.out.println("Sent connection to the server");
+
+            // Read welcome message from the server
+            String welcomeMessage = in.readLine();
+            System.out.println("Received welcome message: " + welcomeMessage);
+
+            // Parse the welcome message to extract the client ID
+            if (welcomeMessage != null && welcomeMessage.startsWith("WELCOME|ClientID=")) {
+                clientId = welcomeMessage.split("=")[1];
+                System.out.println("Assigned Client ID: " + clientId);
+            } else {
+                System.out.println("Unexpected welcome message format: " + welcomeMessage);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    // Method to get the actual client ID
+    public String getClientId() {
+        return clientId;
+    }
+
     // Method to send a poll message to the server
-    public void sendPollMessage(String serverIP, int serverPort, String clientId, int questionNumber) {
+    public void sendPollMessage(String ClientId) {
         DatagramSocket udpSocket = null;
         try {
             udpSocket = new DatagramSocket();
-            String message = "buzz" + " from client " + clientId + " for question " + questionNumber;
+            String message = "BUZZ|" + clientId;
             byte[] buffer = message.getBytes();
-            
+
             InetAddress serverAddress = InetAddress.getByName(serverIP);
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
-            
+
             udpSocket.send(packet);
             System.out.println("Poll message sent using UDP: " + message);
         } catch (IOException e) {
@@ -43,19 +66,21 @@ public class TCPClient {
     }
 
     // Method to send an answer to the server
-    public void sendAnswer(String clientId, String selectedOption) {
+    public void sendAnswer(String selectedOption) {
         try {
-            String message = "answer:" + clientId + ":" + selectedOption;
-            outStream.writeUTF(message);
+            String message = "ANSWER|" + clientId + "|" + selectedOption;
+            System.out.println("Sending answer: " + message);
+            out.println(message);
             System.out.println("Answer sent: " + message);
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public String receiveMessageTCP() {
         try {
-            return inStream.readUTF();
+            String msg = in.readLine();
+            return msg;
         } catch (IOException e) {
             System.err.println("Error receiving TCP message: " + e.getMessage());
             return null;
@@ -65,7 +90,25 @@ public class TCPClient {
     // Close the connection
     public void closeConnection() {
         try {
-            if (socket != null) socket.close();
+            if (socket != null)
+                socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void run() {
+        try (DatagramSocket socket = new DatagramSocket(55632)) {
+            byte[] buffer = new byte[256];
+            System.out.println("UDP listener started on port " + 55632);
+
+            while (true) {
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                socket.receive(packet);
+                String msg = new String(packet.getData(), 0, packet.getLength());
+
+                System.out.println("Received : " + msg);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
