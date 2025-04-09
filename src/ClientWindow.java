@@ -31,7 +31,7 @@ public class ClientWindow implements ActionListener {
 		tcpClient = new TCPClient("127.0.0.1", 55632);
 		clientId = tcpClient.getClientId();
 
-		JOptionPane.showMessageDialog(window, "This is a trivia game");
+		//JOptionPane.showMessageDialog(window, "This is a trivia game");
 
 		window = new JFrame("Trivia");
 		window.setLayout(null);
@@ -63,7 +63,7 @@ public class ClientWindow implements ActionListener {
 		t.schedule(clock, 0, 1000);
 		window.add(timer);
 
-		score = new JLabel("SCORE");
+		score = new JLabel("SCORE: " + scoreValue);
 		score.setBounds(50, 250, 100, 20);
 		window.add(score);
 
@@ -144,11 +144,23 @@ public class ClientWindow implements ActionListener {
 					} else if (msg.equalsIgnoreCase("correct")) {
 						SwingUtilities.invokeLater(() -> {
 							scoreValue += 10;
+							score.setText("SCORE: " + scoreValue);
 							JOptionPane.showMessageDialog(window, "Correct! +10 points");
+						});
+					} else if (msg.equalsIgnoreCase("nanswer")) {
+						SwingUtilities.invokeLater(() -> {
+							scoreValue -= 20;
+							score.setText("SCORE: " + scoreValue);
+							JOptionPane.showMessageDialog(window, "No Answer! -20 points");
+						});
+					} else if (msg.equalsIgnoreCase("npoll")) {
+						SwingUtilities.invokeLater(() -> {
+							JOptionPane.showMessageDialog(window, "Nobody Polled, Next Question!");
 						});
 					} else if (msg.equalsIgnoreCase("wrong")) {
 						SwingUtilities.invokeLater(() -> {
 							scoreValue -= 10;
+							score.setText("SCORE: " + scoreValue);
 							JOptionPane.showMessageDialog(window, "Wrong! -10 points");
 						});
 					} else if (msg.equalsIgnoreCase("KILL")) {
@@ -184,6 +196,8 @@ public class ClientWindow implements ActionListener {
 			if (!isAnsweringAllowed) return;
 			if (selectedOption != null) {
 				tcpClient.sendAnswer(selectedOption);
+			} else if (selectedOption == null){
+				tcpClient.sendAnswer("X");
 			}
 			submit.setEnabled(false);
 			poll.setEnabled(false);
@@ -204,6 +218,9 @@ public class ClientWindow implements ActionListener {
 		public void run() {
 			if (duration < 0) {
 				timer.setText("Timer expired");
+				if (submit.isEnabled()){
+					submit.doClick();
+				}
 				window.repaint();
 				this.cancel();
 				return;

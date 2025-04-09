@@ -3,6 +3,9 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 
+import javax.swing.text.TabStop;
+
+
 public class Server {
     private static final int TCP_PORT = 55632;
     private static final int UDP_PORT = 55632;
@@ -13,6 +16,8 @@ public class Server {
     private static ConcurrentLinkedQueue<Buzz> buzzQueue = new ConcurrentLinkedQueue<>();
     private static int nextClientId = 0;
     private static Integer currentBuzzWinner = null;
+    private static boolean buzzReceived = false;
+    private static Timer pollTimer = null;
 
     private static QuestionManager qm;
     private static String currentQuestion;
@@ -140,7 +145,7 @@ public class Server {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
                 out = new PrintWriter(socket.getOutputStream(), true);
                 out.println("WELCOME|ClientID=" + clientId);
-                out.println(currentQuestion);
+                sendQuestion();
 
                 String msg;
                 while ((msg = in.readLine()) != null) {
@@ -152,29 +157,16 @@ public class Server {
                             String answerOption = parts[2].trim();
                             if (currentQuestion != null && answerOption.equals(currQ.getCorrectAnswer())) {
                                 out.println("correct");
+                            } else if (currentQuestion != null && answerOption.equals("X")) {
+                                out.println("nanswer");
+                            } else if (currentQuestion != null && answerOption.equals("npoll")) {
+                                out.println("npoll");
                             } else {
                                 out.println("wrong");
                             }
 
-                            String nextQuestion = qm.getAndRemoveRandomQuestion();
-                            if (nextQuestion != null) {
-                                currentQuestion = nextQuestion;
-                                currQ = qm.loadQuestion(currentQuestion);
-                                currentBuzzWinner = null;
-                                for (ClientHandler client : clientMap.values()) {
-                                    client.sendMessage("QUESTION|" +
-                                            currQ.getQuestionText() + "|" +
-                                            currQ.getOptionA() + "|" +
-                                            currQ.getOptionB() + "|" +
-                                            currQ.getOptionC() + "|" +
-                                            currQ.getOptionD() + "|" +
-                                            currQ.getCorrectAnswer());
-                                }
-                            } else {
-                                for (ClientHandler client : clientMap.values()) {
-                                    client.sendMessage("GAMEOVER");
-                                }
-                            }
+                            sendQuestion();
+
                         } else {
                             out.println("error: invalid ANSWER format");
                         }
@@ -221,6 +213,7 @@ public class Server {
                     String msg = new String(packet.getData(), 0, packet.getLength());
 
                     if (msg.startsWith("BUZZ|")) {
+                        buzzReceived = true;
                         String[] parts = msg.split("\\|");
                         if (parts.length >= 2) {
                             try {
@@ -238,6 +231,48 @@ public class Server {
                 e.printStackTrace();
             }
         }
+    }
+
+    public static void broadcastToAllClients(String msg) {
+        for (ClientHandler client : clientMap.values()) {
+            client.sendMessage(msg);
+        }
+    }
+
+    public static synchronized void sendQuestion() {
+        String nextQuestion = qm.getAndRemoveRandomQuestion();
+        if (nextQuestion != null) {
+            currentQuestion = nextQuestion;
+            currQ = qm.loadQuestion(currentQuestion);
+            currentBuzzWinner = null;
+            broadcastToAllClients(currentQuestion);
+            pollCheck();
+        } else {
+            broadcastToAllClients("GAMEOVER");
+        }
+    }
+
+    public static synchronized void pollCheck(){
+
+        if (pollTimer != null) {
+            pollTimer.cancel();
+        }
+        
+        buzzReceived = false;
+        pollTimer = new Timer();
+        pollTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if (!buzzReceived) {
+                    System.out.println("No buzz received");
+                    broadcastToAllClients("npoll");
+                    sendQuestion();
+                } else {
+                    System.out.println("Buzz received");
+                }
+                pollTimer.cancel();
+            }
+        }, 15000);
     }
 
     static class Buzz {
