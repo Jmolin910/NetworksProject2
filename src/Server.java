@@ -3,10 +3,8 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-import javax.swing.text.TabStop;
-
-
 public class Server {
+
     private static final int TCP_PORT = 55632;
     private static final int UDP_PORT = 55632;
     private static final int NumQuestions = 20;
@@ -18,6 +16,7 @@ public class Server {
     private static Integer currentBuzzWinner = null;
     private static boolean buzzReceived = false;
     private static Timer pollTimer = null;
+    private static boolean gameStarted = false;
 
     private static QuestionManager qm;
     private static String currentQuestion;
@@ -44,7 +43,11 @@ public class Server {
                 Scanner scanner = new Scanner(System.in);
                 while (true) {
                     String input = scanner.nextLine();
-                    if (input.startsWith("kill ")) {
+                    if (!gameStarted && input.equalsIgnoreCase("start")) {
+                        gameStarted = true;
+                        System.out.println("Starting the game...");
+                        sendQuestion(currentQuestion);
+                    } else if (input.startsWith("kill ")) {
                         try {
                             int targetId = Integer.parseInt(input.substring(5).trim());
                             ClientHandler target = clientMap.get(targetId);
@@ -132,9 +135,11 @@ public class Server {
     }
 
     static class ClientHandler extends Thread {
+
         private Socket socket;
         private int clientId;
         private PrintWriter out;
+        private PlayerRecord player;
 
         public ClientHandler(Socket socket, int clientId) {
             this.socket = socket;
@@ -145,7 +150,12 @@ public class Server {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
                 out = new PrintWriter(socket.getOutputStream(), true);
                 out.println("WELCOME|ClientID=" + clientId);
-                sendQuestion();
+                player = new PlayerRecord(clientId);
+                if (gameStarted == true){
+                    out.println(currentQuestion);
+                } else {
+                    out.println("WAITING");
+                }
 
                 String msg;
                 while ((msg = in.readLine()) != null) {
@@ -157,15 +167,18 @@ public class Server {
                             String answerOption = parts[2].trim();
                             if (currentQuestion != null && answerOption.equals(currQ.getCorrectAnswer())) {
                                 out.println("correct");
+                                player.addScore(10);
                             } else if (currentQuestion != null && answerOption.equals("X")) {
                                 out.println("nanswer");
+                                player.addScore(-20);
                             } else if (currentQuestion != null && answerOption.equals("npoll")) {
                                 out.println("npoll");
                             } else {
                                 out.println("wrong");
+                                player.addScore(-10);
                             }
 
-                            sendQuestion();
+                            sendQuestion(qm.getAndRemoveRandomQuestion());
 
                         } else {
                             out.println("error: invalid ANSWER format");
@@ -194,6 +207,7 @@ public class Server {
     }
 
     static class UDPListener extends Thread {
+
         private int port;
         private ConcurrentLinkedQueue<Buzz> queue;
 
@@ -239,8 +253,7 @@ public class Server {
         }
     }
 
-    public static synchronized void sendQuestion() {
-        String nextQuestion = qm.getAndRemoveRandomQuestion();
+    public static synchronized void sendQuestion(String nextQuestion) {
         if (nextQuestion != null) {
             currentQuestion = nextQuestion;
             currQ = qm.loadQuestion(currentQuestion);
@@ -249,15 +262,16 @@ public class Server {
             pollCheck();
         } else {
             broadcastToAllClients("GAMEOVER");
+            printAllPlayerScores();
         }
     }
 
-    public static synchronized void pollCheck(){
+    public static synchronized void pollCheck()  {
 
         if (pollTimer != null) {
             pollTimer.cancel();
         }
-        
+
         buzzReceived = false;
         pollTimer = new Timer();
         pollTimer.schedule(new TimerTask() {
@@ -266,7 +280,7 @@ public class Server {
                 if (!buzzReceived) {
                     System.out.println("No buzz received");
                     broadcastToAllClients("npoll");
-                    sendQuestion();
+                    sendQuestion(qm.getAndRemoveRandomQuestion());
                 } else {
                     System.out.println("Buzz received");
                 }
@@ -275,7 +289,15 @@ public class Server {
         }, 15000);
     }
 
+    public static void printAllPlayerScores() {
+        System.out.println("=== Player Scores ===");
+        for (ClientHandler ch : clientMap.values()) {
+            System.out.println("Client " + ch.clientId + " Score: " + ch.player.getScore());
+        }
+    }
+
     static class Buzz {
+
         public int clientId;
         public int questionNumber;
 
