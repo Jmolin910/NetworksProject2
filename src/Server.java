@@ -9,26 +9,22 @@ public class Server {
     private static final int NumQuestions = 20;
     private static List<Integer> availableQuestions;
 
-    // Map clientId to ClientHandler
     private static Map<Integer, ClientHandler> clientMap = new ConcurrentHashMap<>();
     private static ConcurrentLinkedQueue<Buzz> buzzQueue = new ConcurrentLinkedQueue<>();
     private static int nextClientId = 0;
     private static Integer currentBuzzWinner = null;
 
-    // New fields for managing questions
     private static QuestionManager qm;
     private static String currentQuestion;
     private static Question currQ;
 
     public static void main(String[] args) {
         try {
-            // Initialize a list of indices (if you need it for other purposes)
             availableQuestions = new ArrayList<>();
             for (int i = 0; i < NumQuestions; i++) {
                 availableQuestions.add(i);
             }
 
-            // Initialize QuestionManager with Questions.txt file and get the first question
             qm = new QuestionManager("src/Questions.txt");
             currentQuestion = qm.getAndRemoveRandomQuestion();
             currQ = qm.loadQuestion(currentQuestion);
@@ -36,11 +32,32 @@ public class Server {
             ServerSocket tcpServer = new ServerSocket(TCP_PORT);
             System.out.println("Server started on TCP port " + TCP_PORT);
 
-            // Start UDP listener thread (for polls, etc.)
             UDPListener udpListener = new UDPListener(UDP_PORT, buzzQueue);
             udpListener.start();
 
-            // Accept incoming TCP clients
+            new Thread(() -> {
+                Scanner scanner = new Scanner(System.in);
+                while (true) {
+                    String input = scanner.nextLine();
+                    if (input.startsWith("kill ")) {
+                        try {
+                            int targetId = Integer.parseInt(input.substring(5).trim());
+                            ClientHandler target = clientMap.get(targetId);
+                            if (target != null) {
+                                target.sendMessage("KILL");
+                                target.closeConnection();
+                                clientMap.remove(targetId);
+                                System.out.println("Client " + targetId + " was kicked by kill switch.");
+                            } else {
+                                System.out.println("No client with ID " + targetId);
+                            }
+                        } catch (NumberFormatException e) {
+                            System.out.println("Invalid client ID.");
+                        }
+                    }
+                }
+            }).start();
+
             while (true) {
                 Socket clientSocket = tcpServer.accept();
                 int clientId = nextClientId++;
@@ -57,8 +74,23 @@ public class Server {
         }
     }
 
-    // Method to handle buzzes (unchanged)
     public static void handleBuzzes() {
+        if (currentBuzzWinner != null) {
+            System.out.println("Buzz already received from Client " + currentBuzzWinner + " — ignoring others.");
+            Iterator<Buzz> iterator = buzzQueue.iterator();
+            while (iterator.hasNext()) {
+                Buzz b = iterator.next();
+                if (b.clientId != currentBuzzWinner) {
+                    ClientHandler lateClient = clientMap.get(b.clientId);
+                    if (lateClient != null) {
+                        lateClient.sendMessage("negative-ack");
+                    }
+                }
+                iterator.remove();
+            }
+            return;
+        }
+
         Set<Integer> seenClients = new HashSet<>();
         Buzz winnerBuzz = null;
 
@@ -68,13 +100,14 @@ public class Server {
             if (!seenClients.contains(b.clientId)) {
                 seenClients.add(b.clientId);
                 if (winnerBuzz == null) {
-                    winnerBuzz = b; // The first valid buzz wins
+                    winnerBuzz = b;
                 }
             }
             iterator.remove();
         }
 
         if (winnerBuzz != null) {
+            currentBuzzWinner = winnerBuzz.clientId;
             ClientHandler winner = clientMap.get(winnerBuzz.clientId);
             if (winner != null) {
                 winner.sendMessage("ack");
@@ -93,7 +126,6 @@ public class Server {
         }
     }
 
-    // TCP client thread
     static class ClientHandler extends Thread {
         private Socket socket;
         private int clientId;
@@ -105,11 +137,8 @@ public class Server {
         }
 
         public void run() {
-            try (
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));) {
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
                 out = new PrintWriter(socket.getOutputStream(), true);
-
-                // Send welcome message and then send the current question string
                 out.println("WELCOME|ClientID=" + clientId);
                 out.println(currentQuestion);
 
@@ -120,28 +149,30 @@ public class Server {
                     if (msg.startsWith("ANSWER|")) {
                         String[] parts = msg.split("\\|");
                         if (parts.length >= 3) {
-                            // parts[1] is the clientID (can optionally be used for verification)
                             String answerOption = parts[2].trim();
-                            // Check if the answer matches the correct answer
                             if (currentQuestion != null && answerOption.equals(currQ.getCorrectAnswer())) {
                                 out.println("correct");
-                                String nextQuestion = qm.getAndRemoveRandomQuestion();
-                                if (nextQuestion != null) {
-                                    currentQuestion = nextQuestion;
-                                    currQ = qm.loadQuestion(currentQuestion);
-                                    out.println(currentQuestion);
-                                } else {
-                                    out.println("no more questions");
-                                }
                             } else {
                                 out.println("wrong");
-                                String nextQuestion = qm.getAndRemoveRandomQuestion();
-                                if (nextQuestion != null) {
-                                    currentQuestion = nextQuestion;
-                                    currQ = qm.loadQuestion(currentQuestion);
-                                    out.println(currentQuestion);
-                                } else {
-                                    out.println("no more questions");
+                            }
+
+                            String nextQuestion = qm.getAndRemoveRandomQuestion();
+                            if (nextQuestion != null) {
+                                currentQuestion = nextQuestion;
+                                currQ = qm.loadQuestion(currentQuestion);
+                                currentBuzzWinner = null;
+                                for (ClientHandler client : clientMap.values()) {
+                                    client.sendMessage("QUESTION|" +
+                                            currQ.getQuestionText() + "|" +
+                                            currQ.getOptionA() + "|" +
+                                            currQ.getOptionB() + "|" +
+                                            currQ.getOptionC() + "|" +
+                                            currQ.getOptionD() + "|" +
+                                            currQ.getCorrectAnswer());
+                                }
+                            } else {
+                                for (ClientHandler client : clientMap.values()) {
+                                    client.sendMessage("GAMEOVER");
                                 }
                             }
                         } else {
@@ -158,8 +189,14 @@ public class Server {
         public void sendMessage(String msg) {
             if (out != null) {
                 out.println(msg);
-            } else {
-                System.out.println("Output stream not initialized for Client " + clientId);
+            }
+        }
+
+        public void closeConnection() {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                System.out.println("Error closing connection for client " + clientId);
             }
         }
     }
@@ -183,8 +220,6 @@ public class Server {
                     socket.receive(packet);
                     String msg = new String(packet.getData(), 0, packet.getLength());
 
-                    System.out.println("Received UDP buzz: " + msg);
-
                     if (msg.startsWith("BUZZ|")) {
                         String[] parts = msg.split("\\|");
                         if (parts.length >= 2) {
@@ -192,7 +227,6 @@ public class Server {
                                 int clientId = Integer.parseInt(parts[1].trim());
                                 Buzz buzz = new Buzz(clientId, 0);
                                 queue.add(buzz);
-                                System.out.println("Added to queue: " + buzz);
                                 Server.handleBuzzes();
                             } catch (NumberFormatException e) {
                                 System.out.println("Invalid BUZZ format: " + msg);
@@ -206,7 +240,6 @@ public class Server {
         }
     }
 
-    // Buzz object for tracking polls
     static class Buzz {
         public int clientId;
         public int questionNumber;
